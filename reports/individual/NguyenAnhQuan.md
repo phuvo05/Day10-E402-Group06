@@ -1,6 +1,6 @@
 # Báo Cáo Cá Nhân — Lab Day 10: Data Pipeline & Data Observability
 
-**Họ và tên:** Thành viên 2 — E402-Group06
+**Họ và tên:** Nguyễn Anh Quân — E402-Group06
 **Vai trò:** Cleaning & Quality Owner
 **Ngày nộp:** 2026-04-15
 **Độ dài yêu cầu:** 400–650 từ

@@ -2,16 +2,15 @@
 
 **Tên nhóm:** E402-Group06
 **Thành viên:**
-| Tên | Vai trò (Day 10) | Email |
-|-----|------------------|-------|
-| Thành viên 1 | Ingestion / Raw Owner | e402-g06-m1@company.com |
-| Thành viên 2 | Cleaning & Quality Owner | e402-g06-m2@company.com |
-| Thành viên 3 | Embed & Idempotency Owner | e402-g06-m3@company.com |
-| Thành viên 4 | Monitoring & Freshness Owner | e402-g06-m4@company.com |
-| Thành viên 5 | Data Contract & Versioning Owner | e402-g06-m5@company.com |
+| Họ tên | MSSV | Vai trò (Day 10) |
+|--------|------|-----------------|
+| Phan Dương Định | 2A202600277 | Ingestion & Raw Owner |
+| Nguyễn Anh Quân | 2A202600132 | Cleaning & Quality Owner |
+| Võ Thiên Phú | 2A202600336 | Embed & Idempotency Owner |
+| Phạm Minh Khang | 2A202600417 | Monitoring & Freshness Owner |
+| Đào Hồng Sơn | 2A202600462 | Data Contract & Versioning Owner |
 
 **Ngày nộp:** 2026-04-15
-**Repo:** `G:/AI_THUC_CHIEN_20K_2026_K1/lab/buoi10/Day10-E402-Group06`
 
 ---
 

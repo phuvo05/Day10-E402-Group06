@@ -1,6 +1,6 @@
 # Báo Cáo Cá Nhân — Lab Day 10: Data Pipeline & Data Observability
 
-**Họ và tên:** Đào Hồng Sơn
+**Họ và tên:** Đào Hồng Sơn (MSSV 2A202600462)
 
 **Vai trò:** Data Contract & Versioning Owner
 

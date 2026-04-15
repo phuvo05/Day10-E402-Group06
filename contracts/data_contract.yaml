@@ -1,15 +1,15 @@
 # Data contract — Lab Day 10 (tiếp nối artifact CS + IT Helpdesk)
-# Sinh viên bổ sung owner, SLA freshness, và nguồn canonical.
 
 version: "1.0"
 dataset: "kb_chunk_export"
-owner_team: "__TODO__"
+owner_team: "E402-Group06 — Data Engineering Team"
+contact: "e402-group06@company.com"
 
 schema_cleaned:
   chunk_id:
     type: string
     required: true
-    description: "ID ổn định sau clean (thường hash hoặc doc_id + seq)"
+    description: "ID ổn định sau clean (SHA256 hash 16 chars của doc_id|chunk_text|seq)"
   doc_id:
     type: string
     required: true
@@ -19,12 +19,15 @@ schema_cleaned:
     required: true
     constraints:
       min_length: 8
+      max_length: 2000
   effective_date:
     type: date
     required: true
+    format: "YYYY-MM-DD"
   exported_at:
     type: datetime
     required: true
+    format: "ISO 8601"
 
 quality_rules:
   - id: "no_duplicate_chunk_text"
@@ -32,29 +35,57 @@ quality_rules:
   - id: "no_stale_refund_window"
     description: "Không được để chunk policy refund chứa cửa sổ 14 ngày (lệch so với v4 = 7 ngày)"
     severity: "halt"
+  - id: "no_phone_pii"
+    description: "Không PII: số điện thoại Việt Nam (0xxx / +84xxx)"
+    severity: "halt"
+  - id: "no_email_pii"
+    description: "Không PII: địa chỉ email nhân viên"
+    severity: "halt"
+  - id: "no_url_in_cleaned"
+    description: "Không chứa HTTP/HTTPS links"
+    severity: "warn"
+  - id: "chunk_max_length_2000"
+    description: "Chunk không vượt quá 2000 ký tự"
+    severity: "warn"
 
 freshness:
   measured_at: "publish"  # ingest | cleaned | publish
   sla_hours: 24
-  alert_channel: "__TODO__"
+  alert_channel: "Slack #data-alerts / email data-team@company.com"
 
 canonical_sources:
   - path: "data/docs/policy_refund_v4.txt"
     doc_id: "policy_refund_v4"
+    owner: "Policy Team"
   - path: "data/docs/sla_p1_2026.txt"
     doc_id: "sla_p1_2026"
+    owner: "IT/SLA Team"
   - path: "data/docs/it_helpdesk_faq.txt"
     doc_id: "it_helpdesk_faq"
+    owner: "IT Helpdesk"
   - path: "data/docs/hr_leave_policy.txt"
     doc_id: "hr_leave_policy"
+    owner: "HR Team"
 
-# Baseline allowlist export — nhóm mở rộng doc mới phải đồng bộ cleaning_rules + contract.
 allowed_doc_ids:
   - policy_refund_v4
   - sla_p1_2026
   - it_helpdesk_faq
   - hr_leave_policy
 
-# Merit/Distinction: có thể đưa cutoff versioning vào env và tham chiếu ở đây (tránh hard-code trong code).
 policy_versioning:
   hr_leave_min_effective_date: "2026-01-01"
+  refund_v4_window_days: 7
+  refund_v3_stale_window_days: 14  # migration bug — đã được fix tự động
+
+source_map:
+  - source: "data/raw/policy_export_dirty.csv"
+    type: "csv_export"
+    failure_modes:
+      - duplicate_chunk_text
+      - missing_effective_date
+      - invalid_effective_date_format
+      - stale_hr_policy_effective_date
+      - unknown_doc_id
+    metrics:
+      quarantine_rate: "4/10 = 40%"

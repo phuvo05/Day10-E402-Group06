@@ -112,5 +112,74 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
         )
     )
 
+    # E7 (NEW): PII check — no phone number should survive to cleaned
+    #    Failure: phone number in chunk_text = internal contact info leaked
+    #    Severity: halt (PII breach is critical)
+    _PHONE_VIETNAM = re.compile(r"\b0\d{9,10}\b|\b\+84\d{9,10}\b")
+    bad_phone = [
+        r for r in cleaned_rows
+        if _PHONE_VIETNAM.search((r.get("chunk_text") or "").lower())
+    ]
+    ok7 = len(bad_phone) == 0
+    results.append(
+        ExpectationResult(
+            "no_phone_pii_in_cleaned",
+            ok7,
+            "halt",
+            f"phone_pii_count={len(bad_phone)}",
+        )
+    )
+
+    # E8 (NEW): URL check — no HTTP/HTTPS links in cleaned chunks
+    #    Failure: URL = internal portal link or broken link candidate
+    #    Severity: warn (broken links degrade retrieval quality but don't corrupt logic)
+    _URL_PATTERN = re.compile(r"https?://\S+", re.IGNORECASE)
+    bad_url = [
+        r for r in cleaned_rows
+        if _URL_PATTERN.search((r.get("chunk_text") or "").lower())
+    ]
+    ok8 = len(bad_url) == 0
+    results.append(
+        ExpectationResult(
+            "no_url_in_cleaned",
+            ok8,
+            "warn",
+            f"url_count={len(bad_url)}",
+        )
+    )
+
+    # E9 (NEW): Chunk max length — detect oversized chunks (likely PDF parser garbage)
+    #    Failure: chunk > 2000 chars = parsing artifact, not useful content
+    #    Severity: warn
+    _MAX_CHUNK_LEN = 2000
+    oversized = [r for r in cleaned_rows if len((r.get("chunk_text") or "")) > _MAX_CHUNK_LEN]
+    ok9 = len(oversized) == 0
+    results.append(
+        ExpectationResult(
+            "chunk_max_length_2000",
+            ok9,
+            "warn",
+            f"oversized_chunks={len(oversized)}",
+        )
+    )
+
+    # E10 (NEW): Email PII check — no email addresses in cleaned
+    #    Failure: email address = internal staff contact leaked
+    #    Severity: halt
+    _EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b", re.IGNORECASE)
+    bad_email = [
+        r for r in cleaned_rows
+        if _EMAIL_PATTERN.search((r.get("chunk_text") or "").lower())
+    ]
+    ok10 = len(bad_email) == 0
+    results.append(
+        ExpectationResult(
+            "no_email_pii_in_cleaned",
+            ok10,
+            "halt",
+            f"email_pii_count={len(bad_email)}",
+        )
+    )
+
     halt = any(not r.passed and r.severity == "halt" for r in results)
     return results, halt

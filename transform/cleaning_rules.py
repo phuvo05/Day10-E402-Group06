@@ -62,6 +62,72 @@ def load_raw_csv(path: Path) -> List[Dict[str, str]]:
     return rows
 
 
+# ===== NEW RULES (Sprint 2+) — E402-Group06 =====
+
+# R7: Quarantine chunk chứa số điện thoại Việt Nam theo pattern 0xxx/84xxx
+#    Failure mode: raw export chứa SDT nhân viên nội bộ (PII leak)
+#    Metric impact: quarantine_records += 1 khi inject BOM có SDT
+_PHONE_VIETNAM = re.compile(r"\b0\d{9,10}\b|\b\+84\d{9,10}\b")
+
+def rule_quarantine_phone(text: str, row: Dict[str, Any]) -> Tuple[bool, str]:
+    """Quarantine rows containing Vietnam phone number patterns (PII sanitization)."""
+    if _PHONE_VIETNAM.search(text):
+        return True, "phone_number_detected"
+    return False, ""
+
+
+# R8: Chuẩn hóa khoảng trắng thừa trong chunk_text (strip, collapse multiple spaces/newlines)
+#    Failure mode: raw export từ PDF có extra spaces hoặc \n lạ
+#    Metric impact: cleaned text length diff, downstream eval quality
+def rule_normalize_whitespace(text: str) -> str:
+    """Normalize whitespace: collapse multiple spaces, strip, normalize newlines to space."""
+    return re.sub(r"[ \t]+", " ", re.sub(r"\r?\n", " ", text)).strip()
+
+
+# R9: Quarantine chunk chứa email pattern (PII — địa chỉ email nhân viên)
+#    Failure mode: export chứa email nội bộ không được publish
+_EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")
+
+def rule_quarantine_email(text: str, row: Dict[str, Any]) -> Tuple[bool, str]:
+    """Quarantine rows containing email addresses (PII sanitization)."""
+    if _EMAIL_PATTERN.search(text):
+        return True, "email_address_detected"
+    return False, ""
+
+
+# R10: Chuẩn hóa Unicode normalization (NFC) cho tiếng Việt
+#    Failure mode: raw export từ source khác encoding → so sánh chunk text sai
+import unicodedata
+
+def rule_normalize_unicode(text: str) -> str:
+    """Normalize Unicode to NFC form for consistent text comparison and embedding."""
+    return unicodedata.normalize("NFC", text)
+
+
+# R11: Quarantine chunk chứa URL/http links (internal links không được publish)
+_URL_PATTERN = re.compile(r"https?://[^\s]+", re.IGNORECASE)
+
+def rule_quarantine_url(text: str, row: Dict[str, Any]) -> Tuple[bool, str]:
+    """Quarantine rows containing HTTP/HTTPS URLs (internal links should be removed)."""
+    if _URL_PATTERN.search(text):
+        return True, "url_detected"
+    return False, ""
+
+
+# R12: Enforce max chunk length (≥2000 chars = potential PDF artifact / garbage)
+#    Failure mode: PDF parser tạo chunk quá dài không có giá trị
+_MAX_CHUNK_LENGTH = 2000
+
+def rule_quarantine_oversized(text: str, row: Dict[str, Any]) -> Tuple[bool, str]:
+    """Quarantine chunks exceeding max length (likely PDF parser garbage)."""
+    if len(text) > _MAX_CHUNK_LENGTH:
+        return True, "oversized_chunk"
+    return False, ""
+
+
+# ===== END NEW RULES =====
+
+
 def clean_rows(
     rows: List[Dict[str, str]],
     *,
@@ -77,6 +143,14 @@ def clean_rows(
     4) Quarantine: chunk_text rỗng hoặc effective_date rỗng sau chuẩn hoá.
     5) Loại trùng nội dung chunk_text (giữ bản đầu).
     6) Fix stale refund: policy_refund_v4 chứa '14 ngày làm việc' → 7 ngày.
+
+    New rules (E402-Group06):
+    R7)  Quarantine: phone number pattern VN (PII)
+    R8)  Normalize: whitespace collapse + strip
+    R9)  Quarantine: email address pattern (PII)
+    R10) Normalize: Unicode NFC normalization
+    R11) Quarantine: URL/http links
+    R12) Quarantine: oversized chunk > 2000 chars
     """
     quarantine: List[Dict[str, Any]] = []
     seen_text: set[str] = set()
@@ -89,9 +163,13 @@ def clean_rows(
         eff_raw = raw.get("effective_date", "")
         exported_at = raw.get("exported_at", "")
 
+        # R1: doc_id allowlist
         if doc_id not in ALLOWED_DOC_IDS:
             quarantine.append({**raw, "reason": "unknown_doc_id"})
             continue
+
+        # R10: Unicode NFC normalization — apply before any text comparison
+        text = rule_normalize_unicode(text)
 
         eff_norm, eff_err = _normalize_effective_date(eff_raw)
         if eff_err == "empty_effective_date":
@@ -101,6 +179,7 @@ def clean_rows(
             quarantine.append({**raw, "reason": eff_err, "effective_date_raw": eff_raw})
             continue
 
+        # R3: HR stale policy version
         if doc_id == "hr_leave_policy" and eff_norm < "2026-01-01":
             quarantine.append(
                 {
@@ -114,6 +193,33 @@ def clean_rows(
         if not text:
             quarantine.append({**raw, "reason": "missing_chunk_text"})
             continue
+
+        # R7: phone number PII
+        do_q, r7_reason = rule_quarantine_phone(text, raw)
+        if do_q:
+            quarantine.append({**raw, "reason": r7_reason})
+            continue
+
+        # R9: email PII
+        do_q, r9_reason = rule_quarantine_email(text, raw)
+        if do_q:
+            quarantine.append({**raw, "reason": r9_reason})
+            continue
+
+        # R11: URL detection
+        do_q, r11_reason = rule_quarantine_url(text, raw)
+        if do_q:
+            quarantine.append({**raw, "reason": r11_reason})
+            continue
+
+        # R12: oversized chunk
+        do_q, r12_reason = rule_quarantine_oversized(text, raw)
+        if do_q:
+            quarantine.append({**raw, "reason": r12_reason})
+            continue
+
+        # R8: normalize whitespace (apply before dedup comparison)
+        text = rule_normalize_whitespace(text)
 
         key = _norm_text(text)
         if key in seen_text:

@@ -1,9 +1,9 @@
 # Báo Cáo Cá Nhân — Lab Day 10: Data Pipeline & Data Observability
 
-**Họ và tên:** Thành viên 1 — E402-Group06
+**Họ và tên:** Phan Dương Định — E402-Group06
+**MSSV** 2A202600277
 **Vai trò:** Ingestion / Raw Owner
 **Ngày nộp:** 2026-04-15
-**Độ dài yêu cầu:** 400–650 từ
 
 ---
 

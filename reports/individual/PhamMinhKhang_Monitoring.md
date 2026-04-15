@@ -1,6 +1,6 @@
 # Báo Cáo Cá Nhân — Lab Day 10: Data Pipeline & Data Observability
 
-**Họ và tên:** Phạm Minh Khang — E402-Group06
+**Họ và tên:** Phạm Minh Khang — 2A202600417
 **Vai trò:** Monitoring & Freshness Owner
 **Ngày nộp:** 2026-04-15
 **Độ dài yêu cầu:** 400–650 từ

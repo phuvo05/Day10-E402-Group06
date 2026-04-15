@@ -41,7 +41,7 @@ def main() -> int:
         import chromadb
         from chromadb.utils import embedding_functions
     except ImportError:
-        print("Install: pip install chromadb sentence-transformers", file=sys.stderr)
+        print("Install: pip install chromadb sentence-transformers openai", file=sys.stderr)
         return 1
 
     qpath = Path(args.questions)
@@ -52,12 +52,30 @@ def main() -> int:
     questions = json.loads(qpath.read_text(encoding="utf-8"))
     db_path = os.environ.get("CHROMA_DB_PATH", str(ROOT / "chroma_db"))
     collection_name = os.environ.get("CHROMA_COLLECTION", "day10_kb")
-    model_name = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
     client = chromadb.PersistentClient(path=db_path)
-    emb = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model_name)
+
+    # Ưu tiên OpenAI nếu có API key, fallback SentenceTransformers
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if api_key:
+        model_name = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+        emb = embedding_functions.OpenAIEmbeddingFunction(api_key=api_key, model_name=model_name)
+    else:
+        model_name = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+        emb = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model_name)
+
     try:
         col = client.get_collection(name=collection_name, embedding_function=emb)
+    except ValueError as e:
+        if "embedding function conflict" in str(e).lower():
+            try:
+                client.delete_collection(name=collection_name)
+            except Exception:
+                pass
+            col = client.get_or_create_collection(name=collection_name, embedding_function=emb)
+        else:
+            print(f"Collection error: {e}", file=sys.stderr)
+            return 2
     except Exception as e:
         print(f"Collection error: {e}", file=sys.stderr)
         return 2

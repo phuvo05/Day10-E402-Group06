@@ -1,11 +1,11 @@
 {
   "run_id": "eval-after",
-  "run_timestamp": "2026-04-15T05:33:47.585478+00:00",
+  "run_timestamp": "2026-04-15T10:33:21.317308+00:00",
   "raw_path": "data\\raw\\policy_export_dirty.csv",
   "raw_records": 10,
   "cleaned_records": 6,
   "quarantine_records": 4,
-  "latest_exported_at": "2026-04-10T08:00:00",
+  "latest_exported_at": "2026-04-15T08:00:00",
   "no_refund_fix": false,
   "skipped_validate": false,
   "cleaned_csv": "artifacts\\cleaned\\cleaned_eval-after.csv",

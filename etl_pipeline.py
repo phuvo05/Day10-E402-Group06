@@ -40,6 +40,14 @@ QUAR_DIR = ART / "quarantine"
 CLEAN_DIR = ART / "cleaned"
 
 
+def _safe_print(msg: str) -> None:
+    """Print with fallback to ASCII-safe output for Windows console (cp1252)."""
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        print(msg.encode("ascii", "replace").decode("ascii"))
+
+
 def _log(path: Path, line: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
@@ -58,7 +66,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         p.mkdir(parents=True, exist_ok=True)
 
     def log(msg: str) -> None:
-        print(msg)
+        _safe_print(msg)
         _log(log_path, msg)
 
     rows = load_raw_csv(raw_path)
@@ -88,7 +96,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         log("PIPELINE_HALT: expectation suite failed (halt).")
         return 2
     if halt and args.skip_validate:
-        log("WARN: expectation failed but --skip-validate → tiếp tục embed (chỉ dùng cho demo Sprint 3).")
+        log("WARN: expectation failed but --skip-validate => tiep tuc embed (chi dung cho demo Sprint 3).")
 
     # Embed
     embed_ok = cmd_embed_internal(
@@ -138,7 +146,17 @@ def cmd_embed_internal(cleaned_csv: Path, *, run_id: str, log) -> bool:
 
     db_path = os.environ.get("CHROMA_DB_PATH", str(ROOT / "chroma_db"))
     collection_name = os.environ.get("CHROMA_COLLECTION", "day10_kb")
-    model_name = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+
+    # Ưu tiên OpenAI embedding nếu có API key, fallback về SentenceTransformers
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if api_key:
+        model_name = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+        emb = embedding_functions.OpenAIEmbeddingFunction(api_key=api_key, model_name=model_name)
+        log(f"embed_model=openai:{model_name}")
+    else:
+        model_name = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+        emb = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model_name)
+        log(f"embed_model=sentence-transformers:{model_name}")
 
     from transform.cleaning_rules import load_raw_csv as load_csv  # same loader
 
@@ -148,11 +166,22 @@ def cmd_embed_internal(cleaned_csv: Path, *, run_id: str, log) -> bool:
         return True
 
     client = chromadb.PersistentClient(path=db_path)
-    emb = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model_name)
-    col = client.get_or_create_collection(name=collection_name, embedding_function=emb)
+
+    try:
+        col = client.get_or_create_collection(name=collection_name, embedding_function=emb)
+    except ValueError as e:
+        if "embedding function conflict" in str(e).lower():
+            try:
+                client.delete_collection(name=collection_name)
+                log("embed_collection_recreated (embedding function changed)")
+            except Exception:
+                pass
+            col = client.get_or_create_collection(name=collection_name, embedding_function=emb)
+        else:
+            raise
 
     ids = [r["chunk_id"] for r in rows]
-    # Tránh “mồi cũ” trong top-k: xóa id không còn trong cleaned run này (index = snapshot publish).
+    # Tránh "mồi cũ" trong top-k: xóa id không còn trong cleaned run này (index = snapshot publish).
     try:
         prev = col.get(include=[])
         prev_ids = set(prev.get("ids") or [])
@@ -207,7 +236,7 @@ def main() -> int:
     )
     p_run.set_defaults(func=cmd_run)
 
-    p_fr = sub.add_parser("freshness", help="Đọc manifest và kiểm tra SLA freshness")
+    p_fr = sub.add_parser("freshness", help="Đọc manifest và ki��m tra SLA freshness")
     p_fr.add_argument("--manifest", required=True)
     p_fr.set_defaults(func=cmd_freshness)
 

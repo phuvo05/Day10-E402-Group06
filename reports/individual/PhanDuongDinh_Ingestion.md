@@ -7,7 +7,7 @@
 
 ---
 
-## 1. Tôi phụ trách phần nào? (80–120 từ)
+## 1. Tôi phụ trách phần nào?
 
 **File / module:**
 - `data/raw/policy_export_dirty.csv` — thiết kế và xây dựng raw export với đầy đủ failure modes (10 records, 5 loại failure)
@@ -30,7 +30,7 @@ quarantine_records=4
 
 ---
 
-## 2. Một quyết định kỹ thuật (100–150 từ)
+## 2. Một quyết định kỹ thuật
 
 **Quyết định:** chọn đặt `run_id` làm UTC timestamp mặc định thay vì hash ngẫu nhiên.
 
@@ -43,7 +43,7 @@ Một quyết định khác: **ghi log ra cả console và file**. Console để
 
 ---
 
-## 3. Một lỗi hoặc anomaly đã xử lý (100–150 từ)
+## 3. Một lỗi hoặc anomaly đã xử lý 
 
 **Triệu chứng:** khi chạy `inject-bad` lần đầu, Unicode character `→` trong log message gây `UnicodeEncodeError` trên Windows console (cp1252).
 
@@ -63,7 +63,7 @@ Sau đó: thay message Unicode bằng ASCII (`→` → `=>`).
 
 ---
 
-## 4. Bằng chứng trước / sau (80–120 từ)
+## 4. Bằng chứng trước / sau 
 
 **run_id:** `lab-final` (pipeline chuẩn cuối cùng)
 
@@ -84,6 +84,6 @@ Sau đó: thay message Unicode bằng ASCII (`→` → `=>`).
 
 ---
 
-## 5. Cải tiến tiếp theo (40–80 từ)
+## 5. Cải tiến tiếp theo 
 
 Nếu có thêm 2 giờ: tôi sẽ thêm **metadata enrichment** vào raw rows — bổ sung trường `source_system` và `ingest_timestamp` ngay tại ingest layer. Điều này giúp lineage tracking (debug "dữ liệu này đến từ đâu") dễ hơn khi có nhiều nguồn hơn (API, DB, stream).

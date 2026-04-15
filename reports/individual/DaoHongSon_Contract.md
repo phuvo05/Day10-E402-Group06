@@ -1,8 +1,11 @@
 # Báo Cáo Cá Nhân — Lab Day 10: Data Pipeline & Data Observability
 
-**Họ và tên:** Thành viên 5 — E402-Group06
+**Họ và tên:** Đào Hồng Sơn
+
 **Vai trò:** Data Contract & Versioning Owner
+
 **Ngày nộp:** 2026-04-15
+
 **Độ dài yêu cầu:** 400–650 từ
 
 ---
